@@ -18,18 +18,24 @@ id="deck-data">` 블록에서 읽어 렌더링합니다. (스키마: `src/model/
 ## 덱 구조
 
 ```
-Deck { version:2, id, title, theme{fontFamily, accent, maxWidth}, sections[], scripts[] }
+Deck { version:2, id, title, canvas{w,h}, theme{fontFamily, accent, maxWidth}, sections[], scripts[] }
 Section { id, layout, background, color, transition, blocks[], notes }
-Block { id, type, props, layout{width,align}, anim{reveal,step,on}, interactions[] }
+Block { id, type, props, layout, anim{reveal,step,on}, style, interactions[] }
 ```
 
-- `layout`(섹션): `center`(가운데), `flow`(세로 스택/스크롤), `split`·`grid`(2단), `fixed`.
-- `anim.step`: 0이면 항상 표시. 1,2,3…은 발표 중 → 키로 단계별 등장(fragment).
-- `anim.on`: `load`(진입 시) | `scroll`(스크롤로 보일 때).
-- 블록 너비: `layout.widthPct`(1~100, 권장) 또는 프리셋 `layout.width`(`auto|full|twothird|half|third`).
-- 블록 위치: `layout.position`이 `absolute`이면 `layout.xPct`/`yPct`(0~100)로 섹션 위 **자유 배치**.
-  기본값 `flow`는 자동 정렬(반응형). 자유배치 좌표·너비는 %라 화면 크기에 따라 비례 유지.
-- 블록 폰트/색: `style.fontFamily`(CSS font-family), `style.color`, `style.fontSize`(px). 미설정 시 테마 상속.
+- `canvas`: 발표 해상도/비율 (예: `{ "w":1280, "h":720 }`. 세로형은 `1080×1920`). 블록 좌표가 %라
+  비율을 바꿔도 함께 맞춰진다.
+- `layout`(섹션): **`free`(자유 배치, 기본/권장)** — 블록을 좌표로 자유 배치. 그 외 `center`(가운데),
+  `flow`(세로 스택), `split`·`grid`(2단), `fixed`는 블록을 자동 정렬(이때 블록은 흐름 배치가 됨).
+- 블록 배치(`layout`):
+  - 기본 `position:"absolute"` + `xPct`,`yPct`(0~100, 좌상단 위치) + `widthPct`(박스 너비 %).
+  - `heightPct`: 박스 높이 %(생략 시 내용 높이). `scale`: 내용 균일 확대 배율(기본 1).
+  - `flow` 레이아웃 섹션에서는 `position:"flow"`로 두고 `widthPct`/`align`(`start|center|end`) 사용.
+- `anim.step`: 0이면 항상 표시. 1,2,3…은 발표 중 → 키로 단계별 등장(reveal.js fragment).
+- `anim.on`: `load`(진입 시) | `scroll`(스크롤로 보일 때). `anim.reveal`: `fade|rise|zoom|none`.
+- 블록 폰트/색: `style.fontFamily`(CSS font-family), `style.color`, `style.fontSize`(px),
+  `style.textAlign`(`left|center|right`). 미설정 시 테마 상속.
+- `theme.maxWidth`는 `flow` 계열 레이아웃의 본문 칼럼 폭(자유 배치에는 영향 없음).
 
 ## 블록 타입과 props
 
@@ -59,17 +65,19 @@ Block { id, type, props, layout{width,align}, anim{reveal,step,on}, interactions
   "version": 2,
   "id": "demo",
   "title": "내 발표",
+  "canvas": { "w": 1280, "h": 720 },
   "theme": { "fontFamily": "\"Pretendard\", system-ui, sans-serif", "accent": "#7c5cff", "maxWidth": 980 },
   "scripts": [],
   "sections": [
     {
-      "id": "s1", "layout": "center",
+      "id": "s1", "layout": "free",
       "background": "linear-gradient(135deg,#1b1f3a,#2d1b4e)", "color": "#fff",
       "transition": "fade", "notes": "",
       "blocks": [
         { "id": "b1", "type": "markdown",
           "props": { "md": "# 제목\n\n### 부제" },
-          "layout": { "width": "auto", "align": "center" },
+          "layout": { "position": "absolute", "xPct": 12, "yPct": 34, "widthPct": 76 },
+          "style": { "textAlign": "center" },
           "anim": { "reveal": "rise", "step": 0, "on": "load" },
           "interactions": [] }
       ]
@@ -82,6 +90,11 @@ Block { id, type, props, layout{width,align}, anim{reveal,step,on}, interactions
 
 1. 이 문서 + `src/model/schema.ts`를 읽는다.
 2. 발표 주제를 섹션으로 나눈다(표지 → 본문 N → 정리/Q&A).
-3. 각 섹션에 적절한 블록을 배치하되 **인터랙션을 최소 1~2개** 넣는다.
+3. 섹션은 기본 `free` 레이아웃, 블록은 `position:"absolute"` + `xPct/yPct/widthPct`로 배치하고
+   **인터랙션을 최소 1~2개** 넣는다.
 4. 결과 JSON을 앱에서 "불러오기"로 검증하거나, `index.html`의 `deck-data`에 주입한다.
 5. 토큰 절약을 위해, 큰 덱은 섹션 단위로 나눠 수정한다.
+
+## 발표 모드 (reveal.js)
+
+←/→/Space 이동(단계 포함) · Esc 또는 O 오버뷰 · F 전체화면 · S 발표자 뷰 · Q 편집 복귀.
