@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WebDeck — 인터랙티브 발표</title>
+    <!-- Optional web fonts so the font presets render (page works without them). -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Nanum+Myeongjo:wght@400;700&family=Gowun+Dodum&display=swap" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" rel="stylesheet" />
+  </head>
+  <body>
+    <div id="root"></div>
+
+    <!--
+      Deck data lives here. On load, the runtime reads this block; on "save",
+      it rewrites ONLY this block and downloads a fresh standalone HTML.
+      Empty/placeholder => the runtime boots with a default starter deck.
+    -->
+    <script type="application/json" id="deck-data">null</script>
+
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
