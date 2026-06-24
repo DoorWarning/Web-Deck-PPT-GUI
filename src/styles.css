@@ -135,6 +135,7 @@ textarea.mono { font-family: ui-monospace, "Cascadia Code", monospace; font-size
 .block.selected { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 6px; }
 .block.pos-absolute { box-sizing: border-box; }
 .block-content { display: block; }
+.block.fill-h, .block.fill-h > .block-content { height: 100%; }
 /* In the editor, block content is non-interactive so the whole block is a
    single drag/select surface (charts, iframes, buttons don't steal events). */
 .app .block-content { pointer-events: none; user-select: none; }

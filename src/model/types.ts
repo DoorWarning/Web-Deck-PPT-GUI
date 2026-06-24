@@ -56,10 +56,12 @@ export interface BlockLayout {
   position?: 'flow' | 'absolute';
   xPct?: number; // left, 0..100 of section width
   yPct?: number; // top, 0..100 of section height
-  heightPct?: number; // (legacy) optional fixed height
-  // Reference width % at scale 1. Resizing changes widthPct while this stays
-  // fixed, so content scale = widthPct / baseWidthPct (uniform scale-to-fit).
-  baseWidthPct?: number;
+  // Free-resize model:
+  //  - widthPct: box width (e/w handles reflow content to it)
+  //  - heightPct: explicit box height (n/s handles set/grow it; auto when unset)
+  //  - scale: uniform content scale from corner handles (default 1)
+  heightPct?: number;
+  scale?: number;
   z?: number;    // paint order for absolute blocks
 }
 

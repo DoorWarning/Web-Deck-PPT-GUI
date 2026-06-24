@@ -6,14 +6,16 @@ import { useStore } from '../store/store';
 
 export interface SnapGuides { x?: number; y?: number }
 
-// Renders block content at a constant design width and uniformly scales it to
-// fill the box (transform). The outer height tracks the scaled content height so
-// the box outline always matches what's shown. Used for free (absolute) blocks
-// so resizing actually grows/shrinks the content, not just the frame.
-function ScaledContent({ scale, children }: { scale: number; children: ReactNode }) {
+// Uniformly scales block content (transform) for free blocks. Corner resize
+// changes `scale` (content grows/shrinks); side handles change the box only
+// (width reflows content, height adds room). When `fillHeight` the box has an
+// explicit height (top-aligned content); otherwise the box height tracks the
+// scaled content height so the outline matches what's shown.
+function ScaledContent({ scale, fillHeight, children }: { scale: number; fillHeight: boolean; children: ReactNode }) {
   const innerRef = useRef<HTMLDivElement>(null);
   const [h, setH] = useState(0);
   useLayoutEffect(() => {
+    if (fillHeight) return;
     const el = innerRef.current;
     if (!el) return;
     const update = () => setH(el.scrollHeight);
@@ -21,9 +23,10 @@ function ScaledContent({ scale, children }: { scale: number; children: ReactNode
     const ro = new ResizeObserver(update);
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+  }, [fillHeight]);
+  const outerHeight = fillHeight ? '100%' : (h ? h * scale : undefined);
   return (
-    <div style={{ width: '100%', height: h ? h * scale : undefined, overflow: 'hidden' }}>
+    <div style={{ width: '100%', height: outerHeight, overflow: 'hidden' }}>
       <div ref={innerRef} style={{ width: `${100 / scale}%`, transform: `scale(${scale})`, transformOrigin: 'top left' }}>
         {children}
       </div>
@@ -56,13 +59,12 @@ export function BlockView({ block, mode, selected, onSelect, hiddenOverride, onC
   const def = getBlockDef(block.type);
   const updateBlock = useStore((s) => s.updateBlock);
   const drag = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null);
-  const resize = useRef<{ dir: Dir; sx: number; sy: number; ox: number; oy: number; ow: number; oh: number; base: number } | null>(null);
+  const resize = useRef<{ dir: Dir; sx: number; sy: number; ox: number; oy: number; ow: number; oh: number; os: number } | null>(null);
 
   const L = block.layout;
   const isAbsolute = L.position === 'absolute';
-  // Uniform content scale for free blocks: current width vs. reference width.
-  const baseW = L.baseWidthPct ?? L.widthPct ?? 40;
-  const scale = isAbsolute ? Math.max(0.05, (L.widthPct ?? 40) / baseW) : 1;
+  const scale = isAbsolute ? Math.max(0.05, L.scale ?? 1) : 1;
+  const fillHeight = isAbsolute && L.heightPct != null;
   const hidden = hiddenOverride ?? block.hidden;
   const clickable = mode === 'present' && block.interactions.some((i) => i.on === 'click');
   const draggable = mode === 'edit' && isAbsolute && !drag.current;
@@ -116,10 +118,8 @@ export function BlockView({ block, mode, selected, onSelect, hiddenOverride, onC
   };
 
   // ----- resize via edge/corner handles (edit + absolute) -----
-  // Resizing changes widthPct (= uniform scale vs. baseWidthPct); content scales
-  // with it. Vertical drags map to scale via aspect. The block's CENTER stays
-  // fixed (grows/shrinks symmetrically).
-  const ASPECT = 1280 / 720;
+  // Corner = uniform content scale (proportional). Side = box only in that
+  // direction (e/w reflows width, n/s changes height). Center-anchored.
   const startResize = (e: React.PointerEvent, dir: Dir) => {
     e.stopPropagation();
     e.preventDefault();
@@ -130,8 +130,9 @@ export function BlockView({ block, mode, selected, onSelect, hiddenOverride, onC
     resize.current = {
       dir, sx: e.clientX, sy: e.clientY,
       ox: L.xPct ?? 0, oy: L.yPct ?? 0,
-      ow: L.widthPct ?? 40, oh: (br.height / sr.height) * 100,
-      base: baseW,
+      ow: L.widthPct ?? 40,
+      oh: L.heightPct ?? (br.height / sr.height) * 100,
+      os: L.scale ?? 1,
     };
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
   };
@@ -143,25 +144,36 @@ export function BlockView({ block, mode, selected, onSelect, hiddenOverride, onC
     const sr = section.getBoundingClientRect();
     const dx = ((e.clientX - r.sx) / sr.width) * 100;
     const dy = ((e.clientY - r.sy) / sr.height) * 100;
-    // Symmetric (center-anchored): outward drag on either side grows equally.
-    let dW = 0;
-    if (r.dir.includes('e')) dW += dx;
-    if (r.dir.includes('w')) dW -= dx;
-    if (r.dir.includes('s')) dW += dy * ASPECT;
-    if (r.dir.includes('n')) dW -= dy * ASPECT;
-    const newW = clamp(r.ow + 2 * dW, 4, 100); // ×2: both sides move from center
-    const ratio = newW / r.ow;
-    const newH = r.oh * ratio;
+    const horiz = r.dir.includes('e') || r.dir.includes('w');
+    const vert = r.dir.includes('n') || r.dir.includes('s');
     const cx = r.ox + r.ow / 2;
     const cy = r.oy + r.oh / 2;
-    const patch = {
-      ...L,
-      position: 'absolute' as const,
-      widthPct: round1(newW),
-      baseWidthPct: round1(r.base),
-      xPct: round1(clamp(cx - newW / 2, -100, 100)),
-      yPct: round1(clamp(cy - newH / 2, -100, 100)),
-    };
+    const patch = { ...L, position: 'absolute' as const };
+
+    if (horiz && vert) {
+      // Corner → uniform scale: drive by horizontal, scale box + content together.
+      const dW = r.dir.includes('e') ? dx : -dx;
+      const newW = clamp(r.ow + 2 * dW, 4, 100);
+      const ratio = newW / r.ow;
+      const newH = r.oh * ratio;
+      patch.widthPct = round1(newW);
+      patch.heightPct = round1(newH);
+      patch.scale = Math.round(r.os * ratio * 1000) / 1000;
+      patch.xPct = round1(cx - newW / 2);
+      patch.yPct = round1(cy - newH / 2);
+    } else if (horiz) {
+      // e/w → box width only (content reflows; scale unchanged).
+      const dW = r.dir.includes('e') ? dx : -dx;
+      const newW = clamp(r.ow + 2 * dW, 4, 100);
+      patch.widthPct = round1(newW);
+      patch.xPct = round1(cx - newW / 2);
+    } else {
+      // n/s → box height only.
+      const dH = r.dir.includes('s') ? dy : -dy;
+      const newH = clamp(r.oh + 2 * dH, 3, 100);
+      patch.heightPct = round1(newH);
+      patch.yPct = round1(cy - newH / 2);
+    }
     updateBlock(block.id, { layout: patch }, true);
   };
   const endResize = (e: React.PointerEvent) => {
@@ -181,6 +193,7 @@ export function BlockView({ block, mode, selected, onSelect, hiddenOverride, onC
     style.left = `${L.xPct ?? 0}%`;
     style.top = `${L.yPct ?? 0}%`;
     style.width = `${L.widthPct ?? 40}%`;
+    if (L.heightPct != null) style.height = `${L.heightPct}%`;
     style.zIndex = L.z ?? 1;
   } else if (L.widthPct != null) {
     style.maxWidth = `${L.widthPct}%`;
@@ -197,6 +210,7 @@ export function BlockView({ block, mode, selected, onSelect, hiddenOverride, onC
     isAbsolute ? 'pos-absolute' : 'pos-flow',
     usePreset ? `w-${L.width ?? 'auto'}` : '',
     `align-${L.align ?? 'center'}`,
+    fillHeight ? 'fill-h' : '',
     fragment ? `fragment ${fragmentAnim}` : '',
     selected ? 'selected' : '',
     clickable ? 'clickable' : '',
@@ -216,7 +230,7 @@ export function BlockView({ block, mode, selected, onSelect, hiddenOverride, onC
     >
       <div className="block-content">
         {isAbsolute ? (
-          <ScaledContent scale={scale}>
+          <ScaledContent scale={scale} fillHeight={fillHeight}>
             <def.Render block={block} mode={mode} vars={vars} />
           </ScaledContent>
         ) : (
