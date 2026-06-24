@@ -32,5 +32,6 @@ function migrate(data: unknown): Deck {
   if (!deck || deck.version !== 2 || !Array.isArray(deck.sections)) {
     throw new Error('unsupported deck format (expected version 2)');
   }
+  if (!deck.canvas) deck.canvas = { w: 1280, h: 720 }; // backfill older decks
   return deck;
 }

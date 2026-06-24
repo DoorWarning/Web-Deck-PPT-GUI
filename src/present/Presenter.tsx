@@ -1,52 +1,43 @@
-import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import Reveal from 'reveal.js';
+import 'reveal.js/dist/reveal.css';
 import { useStore } from '../store/store';
 import { SectionView } from '../render/SectionView';
 import { runInteraction, type InteractionContext } from '../runtime/interactions';
 import { createDeckApi, runUserScript, type DeckApi } from '../runtime/api';
 
-// Fullscreen interactive presentation runtime. Sections navigate left/right;
-// fragment steps reveal within a section before advancing to the next.
+type RevealInstance = InstanceType<typeof Reveal>;
+
+// Presentation runtime powered by reveal.js. Each Deck section becomes a reveal
+// <section> slide; our React SectionView renders the interactive blocks inside.
+// Fragment steps, transitions, fullscreen, overview and progress are reveal's;
+// block interactions / custom scripts route through reveal's navigation API.
 export function Presenter() {
   const deck = useStore((s) => s.deck);
-  const current = useStore((s) => s.currentSection);
-  const goToSection = useStore((s) => s.goToSection);
   const setMode = useStore((s) => s.setMode);
+  const startSection = useRef(useStore.getState().currentSection);
 
-  const section = deck.sections[current];
-  const maxStep = useMemo(
-    () => section.blocks.reduce((m, b) => Math.max(m, b.anim.step ?? 0), 0),
-    [section]
-  );
-
-  const [step, setStep] = useState(0);
+  const revealRef = useRef<HTMLDivElement>(null);
+  const deckRef = useRef<RevealInstance | null>(null);
   const [hidden, setHidden] = useState<Record<string, boolean>>({});
   const vars = useRef<Record<string, unknown>>({});
   const handlers = useRef<{ sectionchange: ((n: number) => void)[] }>({ sectionchange: [] });
   const apiRef = useRef<DeckApi | null>(null);
 
-  const blockHidden = (id: string) =>
-    deck.sections[useStore.getState().currentSection].blocks.find((b) => b.id === id)?.hidden ?? false;
-
-  const advance = useCallback(() => {
-    if (step < maxStep) setStep((s) => s + 1);
-    else goToSection(useStore.getState().currentSection + 1);
-  }, [step, maxStep, goToSection]);
-
-  const retreat = useCallback(() => {
-    if (step > 0) setStep((s) => s - 1);
-    else goToSection(useStore.getState().currentSection - 1);
-  }, [step, goToSection]);
+  const blockHidden = (id: string): boolean => {
+    for (const s of deck.sections) { const b = s.blocks.find((x) => x.id === id); if (b) return b.hidden ?? false; }
+    return false;
+  };
+  const currentBlocks = () => deck.sections[deckRef.current?.getIndices().h ?? 0]?.blocks ?? [];
 
   const ctx: InteractionContext = {
-    goto: (n) => goToSection(n - 1),
-    next: advance,
-    prev: retreat,
+    goto: (n) => deckRef.current?.slide(n - 1, 0, 0),
+    next: () => deckRef.current?.next(),
+    prev: () => deckRef.current?.prev(),
     toggleBlock: (id) => setHidden((h) => ({ ...h, [id]: !(h[id] ?? blockHidden(id)) })),
     setVar: (n, v) => { vars.current[n] = v; },
     runScript: (code) => apiRef.current && runUserScript(code, apiRef.current),
   };
-  // Keep a live ref to the fresh ctx so the persisted Deck API never calls a
-  // stale advance/retreat (which would capture an old fragment step).
   const ctxRef = useRef<InteractionContext>(ctx);
   ctxRef.current = ctx;
 
@@ -59,90 +50,93 @@ export function Presenter() {
       setVar: (n, v) => ctxRef.current.setVar(n, v),
       runScript: (c) => ctxRef.current.runScript(c),
     };
-    apiRef.current = createDeckApi(stable, () => useStore.getState().currentSection + 1, vars.current, handlers.current);
+    apiRef.current = createDeckApi(stable, () => (deckRef.current?.getIndices().h ?? 0) + 1, vars.current, handlers.current);
   }
 
-  // Run global custom scripts once.
   useEffect(() => {
-    handlers.current.sectionchange = [];
-    deck.scripts.forEach((code) => apiRef.current && runUserScript(code, apiRef.current));
+    if (!revealRef.current) return;
+    const r = new Reveal(revealRef.current, {
+      embedded: false,
+      controls: true,
+      progress: true,
+      hash: false,
+      center: false,
+      slideNumber: 'c/t',
+      transition: 'fade',
+      width: deck.canvas.w,
+      height: deck.canvas.h,
+      margin: 0.04,
+      minScale: 0.2,
+      maxScale: 2.0,
+      keyboard: true,
+    });
+    deckRef.current = r;
+
+    r.initialize().then(() => {
+      r.slide(startSection.current, 0, 0);
+      deck.scripts.forEach((code) => apiRef.current && runUserScript(code, apiRef.current));
+    });
+
+    // Section enter → fire sectionchange handlers.
+    r.on('slidechanged', ((ev: { indexh?: number }) => {
+      handlers.current.sectionchange.forEach((fn) => { try { fn((ev.indexh ?? 0) + 1); } catch (e) { console.error(e); } });
+    }) as EventListener);
+
+    // Fragment shown → run that block's 'step' interactions.
+    r.on('fragmentshown', ((ev: { fragment?: HTMLElement }) => {
+      const id = ev.fragment?.getAttribute('data-block-id');
+      if (!id) return;
+      const b = currentBlocks().find((x) => x.id === id);
+      if (b) for (const it of b.interactions) if (it.on === 'step') runInteraction(it, ctxRef.current);
+    }) as EventListener);
+
+    return () => { r.destroy(); deckRef.current = null; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // On section change: reset fragment step, fire sectionchange handlers.
-  useEffect(() => {
-    setStep(0);
-    handlers.current.sectionchange.forEach((fn) => { try { fn(current + 1); } catch (e) { console.error(e); } });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [current]);
+  const exit = () => {
+    const h = deckRef.current?.getIndices().h ?? 0;
+    useStore.getState().goToSection(h);
+    setMode('edit');
+  };
 
-  // Fire 'step' interactions for blocks at the newly active step.
-  useEffect(() => {
-    for (const b of section.blocks) {
-      if ((b.anim.step ?? 0) !== step) continue;
-      for (const it of b.interactions) if (it.on === 'step') runInteraction(it, ctx);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [current, step]);
-
-  // Keyboard navigation.
+  // Q exits to the editor (Esc/O is reveal's overview).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement;
-      if (['INPUT', 'TEXTAREA'].includes(t.tagName)) return; // don't hijack playground typing
-      if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') { e.preventDefault(); advance(); }
-      else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); retreat(); }
-      else if (e.key === 'Escape') exit();
-      else if (e.key.toLowerCase() === 'f') toggleFullscreen();
-      else if (e.key === 'Home') goToSection(0);
-      else if (e.key === 'End') goToSection(deck.sections.length - 1);
+      if (['INPUT', 'TEXTAREA'].includes(t.tagName)) return;
+      if (e.key === 'q' || e.key === 'Q') exit();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [advance, retreat]);
-
-  const exit = useCallback(() => {
-    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
-    setMode('edit');
-  }, [setMode]);
-
-  const toggleFullscreen = () => {
-    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
-    else document.documentElement.requestFullscreen().catch(() => {});
-  };
+  }, []);
 
   const onBlockClick = (id: string) => {
-    const b = section.blocks.find((x) => x.id === id);
+    const b = currentBlocks().find((x) => x.id === id);
     if (!b) return;
-    for (const it of b.interactions) if (it.on === 'click') runInteraction(it, ctx);
+    for (const it of b.interactions) if (it.on === 'click') runInteraction(it, ctxRef.current);
   };
 
-  const progress = ((current + 1) / deck.sections.length) * 100;
-
   return (
-    <div className="presenter">
-      <div key={current} className={`present-stage transition-${section.transition}`}>
-        <SectionView
-          section={section}
-          theme={deck.theme}
-          mode="present"
-          visibleStep={step}
-          hiddenOverrides={hidden}
-          onBlockClick={onBlockClick}
-          vars={vars.current}
-        />
+    <div className="presenter-reveal">
+      <div className="reveal" ref={revealRef}>
+        <div className="slides">
+          {deck.sections.map((section) => (
+            <section key={section.id} data-transition={section.transition} data-background-color="#000">
+              <SectionView
+                section={section}
+                theme={deck.theme}
+                mode="present"
+                hiddenOverrides={hidden}
+                onBlockClick={onBlockClick}
+                vars={vars.current}
+              />
+            </section>
+          ))}
+        </div>
       </div>
-
-      <div className="present-progress"><span style={{ width: `${progress}%` }} /></div>
-
-      <div className="present-controls">
-        <button onClick={retreat} title="이전">‹</button>
-        <span>{current + 1} / {deck.sections.length}{maxStep > 0 ? ` · ${step}/${maxStep}` : ''}</span>
-        <button onClick={advance} title="다음">›</button>
-        <button onClick={toggleFullscreen} title="전체화면 (F)">⛶</button>
-        <button onClick={exit} title="나가기 (Esc)">✕</button>
-      </div>
+      <button className="present-exit" onClick={exit} title="편집으로 (Q)">✕ 편집</button>
     </div>
   );
 }

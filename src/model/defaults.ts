@@ -1,7 +1,7 @@
 import { nanoid } from 'nanoid';
 import type { Deck, Section, Block, BlockType } from './types';
 
-export function newSection(layout: Section['layout'] = 'center'): Section {
+export function newSection(layout: Section['layout'] = 'free'): Section {
   return {
     id: nanoid(8),
     layout,
@@ -47,7 +47,7 @@ export function defaultBlockProps(type: BlockType): Record<string, unknown> {
         showEditor: true,
       };
     case 'embed':
-      return { url: 'https://www.youtube.com/embed/dQw4w9WgXcQ', ratio: '16/9' };
+      return { url: 'https://www.youtube.com/embed/88GkYKvnvvI?si=mmN5-95FtyLdFC_v', ratio: '16/9' };
     case 'customCode':
       return {
         html: '<div class="card">커스텀 HTML/CSS/JS</div>',
@@ -62,31 +62,37 @@ export function newBlock(type: BlockType): Block {
     id: nanoid(8),
     type,
     props: defaultBlockProps(type),
-    layout: { width: 'auto', align: 'center', position: 'flow' },
+    // Free placement (absolute) is the default — drag blocks anywhere.
+    layout: { width: 'auto', align: 'center', position: 'absolute', xPct: 15, yPct: 18, widthPct: 70 },
     anim: { reveal: 'fade', step: 0, on: 'load' },
     interactions: [],
   };
 }
 
 export function defaultDeck(): Deck {
-  const cover = newSection('center');
+  const cover = newSection('free');
   cover.background = 'linear-gradient(135deg, #1b1f3a 0%, #2d1b4e 100%)';
   const title = newBlock('markdown');
   title.props = { md: '# 인터랙티브 발표\n\n### 웹페이지처럼, 실시간으로 조작되는 발표 자료' };
+  title.layout = { position: 'absolute', xPct: 12, yPct: 34, widthPct: 76, align: 'center' };
+  title.style = { textAlign: 'center' };
   title.anim = { reveal: 'rise', step: 0, on: 'load' };
   cover.blocks = [title];
 
-  const demo = newSection('flow');
+  const demo = newSection('free');
   demo.background = '#0f1220';
   const intro = newBlock('markdown');
   intro.props = { md: '## 차트를 직접 움직여 보세요\n\n슬라이더를 드래그하면 즉시 반영됩니다.' };
+  intro.layout = { position: 'absolute', xPct: 8, yPct: 8, widthPct: 84, align: 'start' };
   const chart = newBlock('chart');
+  chart.layout = { position: 'absolute', xPct: 12, yPct: 34, widthPct: 76, align: 'center' };
   demo.blocks = [intro, chart];
 
-  const quizSection = newSection('center');
+  const quizSection = newSection('free');
   quizSection.background = 'linear-gradient(135deg,#10231c,#0f1220)';
   const poll = newBlock('poll');
   poll.props = { question: 'HTML 발표의 장점은?', options: ['높은 자유도', '인터랙션', '쉬운 배포', '전부 다'], correct: 3, persist: false };
+  poll.layout = { position: 'absolute', xPct: 22, yPct: 22, widthPct: 56, align: 'center' };
   quizSection.blocks = [poll];
 
   return {
@@ -99,6 +105,7 @@ export function defaultDeck(): Deck {
       accent: '#7c5cff',
       maxWidth: 980,
     },
+    canvas: { w: 1280, h: 720 },
     sections: [cover, demo, quizSection],
     scripts: [],
   };

@@ -33,6 +33,7 @@ interface EditorState {
   duplicateSection: (i: number) => void;
   reorderSections: (from: number, to: number) => void;
   updateSection: (i: number, patch: Partial<Section>) => void;
+  setSectionLayout: (i: number, layout: Section['layout']) => void;
 
   // blocks (operate on current section)
   addBlock: (type: BlockType) => void;
@@ -45,6 +46,7 @@ interface EditorState {
   setScripts: (scripts: string[]) => void;
   setTitle: (title: string) => void;
   setTheme: (patch: Partial<Deck['theme']>) => void;
+  setCanvas: (patch: Partial<Deck['canvas']>) => void;
   replaceDeck: (deck: Deck) => void;
 
   undo: () => void;
@@ -108,9 +110,39 @@ export const useStore = create<EditorState>((set, get) => {
       set({ currentSection: to });
     },
     updateSection: (i, patch) => commit((d) => { d.sections[i] = { ...d.sections[i], ...patch }; }),
+    // Changing layout also re-flows existing blocks: 'free' makes them absolute
+    // (drag/resize), any other layout puts them back into document flow. This
+    // is why a layout switch now takes effect even when the section has blocks.
+    setSectionLayout: (i, layout) =>
+      commit((d) => {
+        const s = d.sections[i];
+        s.layout = layout;
+        s.blocks.forEach((b, idx) => {
+          if (layout === 'free') {
+            b.layout = {
+              ...b.layout,
+              position: 'absolute',
+              xPct: b.layout.xPct ?? (12 + (idx % 5) * 6),
+              yPct: b.layout.yPct ?? (12 + (idx % 6) * 9),
+              widthPct: b.layout.widthPct ?? 70,
+            };
+          } else {
+            b.layout = { ...b.layout, position: 'flow' };
+          }
+        });
+      }),
 
     addBlock: (type) => {
       const block = newBlock(type);
+      const section = sec(get().deck);
+      if (section.layout === 'free') {
+        // Stagger absolute placement so new blocks don't stack exactly.
+        const n = section.blocks.length;
+        block.layout = { ...block.layout, position: 'absolute', xPct: 12 + (n % 5) * 6, yPct: 12 + (n % 6) * 9 };
+      } else {
+        // Non-free layouts arrange blocks in flow.
+        block.layout = { ...block.layout, position: 'flow' };
+      }
       commit((d) => sec(d).blocks.push(block));
       set({ selectedBlockId: block.id });
     },
@@ -155,6 +187,7 @@ export const useStore = create<EditorState>((set, get) => {
     setScripts: (scripts) => commit((d) => { d.scripts = scripts; }),
     setTitle: (title) => commit((d) => { d.title = title; }),
     setTheme: (patch) => commit((d) => { d.theme = { ...d.theme, ...patch }; }),
+    setCanvas: (patch) => commit((d) => { d.canvas = { ...d.canvas, ...patch }; }),
     replaceDeck: (deck) => set({ deck, currentSection: 0, selectedBlockId: null, history: { past: [], future: [] } }),
 
     undo: () => {

@@ -35,7 +35,7 @@ Block { id, type, props, layout{width,align}, anim{reveal,step,on}, interactions
 
 | type | props |
 |------|-------|
-| `markdown` | `{ md: string }` — 마크다운 |
+| `markdown` | `{ md: string }` — 마크다운. LaTeX 수식 지원: 인라인 `$x^2$`, 블록 `$$E=mc^2$$` |
 | `media` | `{ kind:'image'|'video', src, alt, caption }` |
 | `chart` | `{ chartType:'bar'|'line'|'pie'|'doughnut', labels:[], data:[], label, controllable:bool, min, max }` |
 | `poll` | `{ question, options:[], correct:number(-1=폴, >=0=퀴즈 정답 인덱스), persist:bool }` |

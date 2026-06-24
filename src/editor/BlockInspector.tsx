@@ -15,7 +15,27 @@ export function BlockInspector() {
 }
 
 function Sec({ title, children }: { title: string; children: React.ReactNode }) {
-  return <div className="insp-section"><h4>{title}</h4>{children}</div>;
+  return <div className="insp-section"><h4>{title}</h4><div className="insp-body">{children}</div></div>;
+}
+
+function hexOf(v: string): string {
+  if (/^#[0-9a-fA-F]{6}$/.test(v)) return v;
+  if (/^#[0-9a-fA-F]{3}$/.test(v)) return '#' + v.slice(1).split('').map((c) => c + c).join('');
+  return '#000000';
+}
+
+// Color picker + optional text field (for gradients / named colors).
+function ColorField({ label, value, onChange, allowText, placeholder }: {
+  label: string; value: string; onChange: (v: string) => void; allowText?: boolean; placeholder?: string;
+}) {
+  return (
+    <label className="field"><span>{label}</span>
+      <span className="color-cell">
+        <input type="color" value={hexOf(value)} onChange={(e) => onChange(e.target.value)} />
+        {allowText && <input type="text" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} />}
+      </span>
+    </label>
+  );
 }
 
 function BlockProps({ block }: { block: Block }) {
@@ -75,7 +95,9 @@ const clampPct = (v: string) => Math.max(0, Math.min(100, Number(v) || 0));
 
 // Align an absolute block to the section edges/center using its measured size.
 function alignAbsolute(block: Block, h: 'left' | 'center' | 'right' | null, v: 'top' | 'middle' | 'bottom' | null): Partial<Block['layout']> {
-  const el = document.querySelector<HTMLElement>(`[data-block-id="${CSS.escape(block.id)}"]`);
+  // Scope to the editor Stage — the left-panel thumbnails share the same
+  // data-block-id, and querying globally would measure the tiny thumbnail.
+  const el = document.querySelector<HTMLElement>(`.stage [data-block-id="${CSS.escape(block.id)}"]`);
   const section = el?.closest('.section') as HTMLElement | null;
   if (!el || !section) return {};
   const er = el.getBoundingClientRect();
@@ -260,8 +282,11 @@ function SectionDeckProps() {
   const section = useCurrentSection();
   const idx = useStore((s) => s.currentSection);
   const updateSection = useStore((s) => s.updateSection);
+  const setSectionLayout = useStore((s) => s.setSectionLayout);
   const theme = useStore((s) => s.deck.theme);
   const setTheme = useStore((s) => s.setTheme);
+  const canvas = useStore((s) => s.deck.canvas);
+  const setCanvas = useStore((s) => s.setCanvas);
   const scripts = useStore((s) => s.deck.scripts);
   const setScripts = useStore((s) => s.setScripts);
 
@@ -269,7 +294,8 @@ function SectionDeckProps() {
     <>
       <Sec title="섹션">
         <label className="field"><span>레이아웃</span>
-          <select value={section.layout} onChange={(e) => updateSection(idx, { layout: e.target.value as Section['layout'] })}>
+          <select value={section.layout} onChange={(e) => setSectionLayout(idx, e.target.value as Section['layout'])}>
+            <option value="free">자유 배치(드래그)</option>
             <option value="center">가운데 정렬</option>
             <option value="flow">흐름(스택)</option>
             <option value="split">2단 분할</option>
@@ -277,12 +303,8 @@ function SectionDeckProps() {
             <option value="fixed">고정(스케일)</option>
           </select>
         </label>
-        <label className="field col"><span>배경 (CSS)</span>
-          <input value={section.background} onChange={(e) => updateSection(idx, { background: e.target.value })} placeholder="#0f1220 또는 linear-gradient(...)" />
-        </label>
-        <label className="field"><span>글자색</span>
-          <input type="color" value={/^#[0-9a-f]{6}$/i.test(section.color ?? '') ? section.color : '#ffffff'} onChange={(e) => updateSection(idx, { color: e.target.value })} />
-        </label>
+        <ColorField label="배경" value={section.background} onChange={(v) => updateSection(idx, { background: v })} allowText placeholder="#0f1220 또는 gradient" />
+        <ColorField label="글자색" value={section.color ?? '#ffffff'} onChange={(v) => updateSection(idx, { color: v })} />
         <label className="field"><span>전환</span>
           <select value={section.transition} onChange={(e) => updateSection(idx, { transition: e.target.value as Section['transition'] })}>
             <option value="none">없음</option>
@@ -296,6 +318,24 @@ function SectionDeckProps() {
         </label>
       </Sec>
 
+      <Sec title="캔버스 (해상도)">
+        <div className="grid2">
+          <label className="field"><span>가로</span>
+            <input type="number" min={320} value={canvas.w} onChange={(e) => setCanvas({ w: Math.max(320, Number(e.target.value) || 0) })} />
+          </label>
+          <label className="field"><span>세로</span>
+            <input type="number" min={240} value={canvas.h} onChange={(e) => setCanvas({ h: Math.max(240, Number(e.target.value) || 0) })} />
+          </label>
+        </div>
+        <div className="btn-row">
+          <button onClick={() => setCanvas({ w: 1280, h: 720 })}>16:9</button>
+          <button onClick={() => setCanvas({ w: 1280, h: 800 })}>16:10</button>
+          <button onClick={() => setCanvas({ w: 1024, h: 768 })}>4:3</button>
+          <button onClick={() => setCanvas({ w: 1080, h: 1920 })}>세로(9:16)</button>
+        </div>
+        <p className="hint">발표 화면의 해상도/비율입니다. 블록은 % 좌표라 비율을 바꿔도 함께 맞춰집니다.</p>
+      </Sec>
+
       <Sec title="테마">
         <label className="field col"><span>본문 폰트</span>
           <input value={theme.fontFamily} onChange={(e) => setTheme({ fontFamily: e.target.value })} />
@@ -303,7 +343,7 @@ function SectionDeckProps() {
         <label className="field"><span>강조색</span>
           <input type="color" value={theme.accent} onChange={(e) => setTheme({ accent: e.target.value })} />
         </label>
-        <label className="field"><span>본문 최대폭</span>
+        <label className="field"><span>본문 칼럼 폭(흐름)</span>
           <input type="number" value={theme.maxWidth} onChange={(e) => setTheme({ maxWidth: Number(e.target.value) })} />
         </label>
       </Sec>

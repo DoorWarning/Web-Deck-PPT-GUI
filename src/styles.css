@@ -62,10 +62,16 @@ button.primary:hover { filter: brightness(1.08); }
 .stage-hint { color: var(--muted); font-size: 12px; margin: 0; }
 
 /* inspector */
-.inspector { background: var(--chrome2); border-left: 1px solid var(--line); overflow-y: auto; padding: 12px; }
-.insp-section { margin-bottom: 18px; }
-.insp-section h4 { margin: 0 0 8px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.inspector { background: var(--chrome); border-left: 1px solid var(--line); overflow-y: auto; padding: 12px; }
+.insp-section { margin-bottom: 12px; background: var(--chrome2); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.insp-section h4 { margin: 0; padding: 9px 12px; font-size: 12px; color: var(--text); font-weight: 700; letter-spacing: 0.02em; background: var(--chrome3); border-bottom: 1px solid var(--line); }
+.insp-body { padding: 12px; display: flex; flex-direction: column; gap: 7px; }
+.color-cell { display: inline-flex; align-items: center; gap: 6px; }
+.color-cell input[type="color"] { width: 30px; height: 28px; padding: 0; border: 1px solid var(--line); border-radius: 6px; background: none; }
+.color-cell input[type="text"] { width: 116px; }
 .field { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 7px; font-size: 13px; }
+.insp-body .field { margin-bottom: 0; }
+.insp-body > .grid2, .insp-body > .btn-row, .insp-body > .align-grid { margin: 0; }
 .field.col { flex-direction: column; align-items: stretch; }
 .field > span:first-child { color: var(--muted); flex-shrink: 0; }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
@@ -114,7 +120,7 @@ textarea.mono { font-family: ui-monospace, "Cascadia Code", monospace; font-size
 .section-inner { width: 100%; max-width: var(--max-w, 980px); margin: 0 auto; padding: var(--pad, 64px); display: flex; flex-direction: column; gap: 24px; box-sizing: border-box; }
 .layout-center { align-items: center; }
 .layout-center .section-inner { justify-content: center; min-height: 100%; align-items: center; text-align: center; }
-.layout-flow .section-inner { justify-content: flex-start; }
+.layout-flow .section-inner, .layout-free .section-inner { justify-content: flex-start; }
 .layout-split .section-inner, .layout-grid .section-inner { display: grid; grid-template-columns: 1fr 1fr; align-content: center; min-height: 100%; }
 @media (max-width: 760px) { .layout-split .section-inner, .layout-grid .section-inner { grid-template-columns: 1fr; } }
 .empty-section { color: rgba(255,255,255,0.5); border: 1px dashed rgba(255,255,255,0.3); border-radius: 10px; padding: 40px; text-align: center; }
@@ -128,8 +134,23 @@ textarea.mono { font-family: ui-monospace, "Cascadia Code", monospace; font-size
 .block.clickable { cursor: pointer; }
 .block.selected { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 6px; }
 .block.pos-absolute { box-sizing: border-box; }
+.block-content { display: block; }
+/* In the editor, block content is non-interactive so the whole block is a
+   single drag/select surface (charts, iframes, buttons don't steal events). */
+.app .block-content { pointer-events: none; user-select: none; }
 .block.draggable { cursor: move; }
 .block.draggable:hover { outline: 1px dashed rgba(124,92,255,0.6); outline-offset: 4px; border-radius: 6px; }
+
+/* resize handles for selected absolute blocks */
+.rz { position: absolute; width: 11px; height: 11px; background: #fff; border: 1.5px solid var(--accent); border-radius: 2px; z-index: 10; pointer-events: auto; }
+.rz-nw { left: -6px; top: -6px; cursor: nwse-resize; }
+.rz-n  { left: 50%; top: -6px; margin-left: -6px; cursor: ns-resize; }
+.rz-ne { right: -6px; top: -6px; cursor: nesw-resize; }
+.rz-e  { right: -6px; top: 50%; margin-top: -6px; cursor: ew-resize; }
+.rz-se { right: -6px; bottom: -6px; cursor: nwse-resize; }
+.rz-s  { left: 50%; bottom: -6px; margin-left: -6px; cursor: ns-resize; }
+.rz-sw { left: -6px; bottom: -6px; cursor: nesw-resize; }
+.rz-w  { left: -6px; top: 50%; margin-top: -6px; cursor: ew-resize; }
 
 /* alignment snap guides (edit) */
 .snap-guide { position: absolute; background: var(--accent); z-index: 99999; pointer-events: none; box-shadow: 0 0 4px var(--accent); }
@@ -199,7 +220,19 @@ textarea.mono { font-family: ui-monospace, "Cascadia Code", monospace; font-size
 .embed-block { width: 100%; background: #000; border-radius: 12px; overflow: hidden; }
 .customcode-frame { background: transparent; }
 
-/* ============ Presenter ============ */
+/* ============ Presenter (reveal.js) ============ */
+.presenter-reveal { position: fixed; inset: 0; background: #000; }
+.presenter-reveal .reveal { width: 100%; height: 100%; }
+/* each reveal slide hosts one full-bleed section */
+.reveal .slides { text-align: left; }
+.reveal .slides > section, .reveal .slides > section > section { padding: 0; height: 100%; width: 100%; box-sizing: border-box; }
+.reveal .slides .section { height: 100%; width: 100%; }
+/* reveal resets that would shrink our content */
+.reveal .section h1, .reveal .section h2, .reveal .section h3 { text-transform: none; }
+.present-exit { position: fixed; top: 12px; right: 12px; z-index: 60; background: rgba(20,20,20,0.8); color: #fff; border: 1px solid rgba(255,255,255,0.25); border-radius: 8px; padding: 6px 12px; opacity: 0.25; transition: opacity 0.2s; }
+.present-exit:hover { opacity: 1; }
+
+/* ============ Presenter (legacy custom — unused) ============ */
 .presenter { position: fixed; inset: 0; background: #000; overflow: hidden; }
 .present-stage { width: 100%; height: 100%; }
 .transition-fade { animation: pFade 0.5s ease; }

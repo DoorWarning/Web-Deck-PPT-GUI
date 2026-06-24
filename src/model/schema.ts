@@ -9,6 +9,11 @@ export const deckSchema = {
     version: { const: 2 },
     id: { type: 'string' },
     title: { type: 'string' },
+    canvas: {
+      type: 'object',
+      description: '발표 해상도 (예: 1280×720)',
+      properties: { w: { type: 'number' }, h: { type: 'number' } },
+    },
     theme: {
       type: 'object',
       required: ['fontFamily', 'accent', 'maxWidth'],
@@ -27,7 +32,7 @@ export const deckSchema = {
         required: ['id', 'layout', 'background', 'transition', 'blocks'],
         properties: {
           id: { type: 'string' },
-          layout: { enum: ['flow', 'center', 'split', 'grid', 'fixed'] },
+          layout: { enum: ['free', 'flow', 'center', 'split', 'grid', 'fixed'] },
           background: { type: 'string' },
           color: { type: 'string' },
           transition: { enum: ['none', 'fade', 'slide', 'zoom'] },
@@ -52,6 +57,7 @@ export const deckSchema = {
                     position: { enum: ['flow', 'absolute'], description: 'absolute면 xPct/yPct로 섹션 위 자유 배치' },
                     xPct: { type: 'number', description: '자유배치 좌측 위치 % (0..100)' },
                     yPct: { type: 'number', description: '자유배치 상단 위치 % (0..100)' },
+                    heightPct: { type: 'number', description: '자유배치 고정 높이 % (0..100, 미설정 시 내용 높이)' },
                     z: { type: 'number' },
                   },
                 },

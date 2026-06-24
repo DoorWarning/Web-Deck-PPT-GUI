@@ -2,6 +2,8 @@ import { useRef } from 'react';
 import { useStore } from '../store/store';
 import { SectionView } from '../render/SectionView';
 
+const THUMB_W = 150; // thumbnail width in px
+
 // Left rail: section thumbnails with add/delete/duplicate and drag-reorder.
 export function SectionPanel() {
   const deck = useStore((s) => s.deck);
@@ -27,9 +29,9 @@ export function SectionPanel() {
             onClick={() => goToSection(i)}
           >
             <span className="section-index">{i + 1}</span>
-            <div className="section-thumb">
-              <div className="thumb-scale">
-                <SectionView section={sec} theme={deck.theme} mode="present" visibleStep={Infinity} />
+            <div className="section-thumb" style={{ width: THUMB_W, height: THUMB_W * (deck.canvas.h / deck.canvas.w) }}>
+              <div className="thumb-scale" style={{ width: deck.canvas.w, height: deck.canvas.h, transform: `scale(${THUMB_W / deck.canvas.w})` }}>
+                <SectionView section={sec} theme={deck.theme} mode="present" />
               </div>
             </div>
             <div className="section-thumb-actions">

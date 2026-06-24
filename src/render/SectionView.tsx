@@ -10,7 +10,6 @@ interface Props {
   selectedBlockId?: string | null;
   onSelectBlock?: (id: string | null) => void;
   // present
-  visibleStep?: number;
   hiddenOverrides?: Record<string, boolean>;
   onBlockClick?: (id: string) => void;
   vars?: Record<string, unknown>;
@@ -22,7 +21,7 @@ interface Props {
 export function SectionView({
   section, theme, mode,
   selectedBlockId, onSelectBlock,
-  visibleStep, hiddenOverrides, onBlockClick, vars,
+  hiddenOverrides, onBlockClick, vars,
 }: Props) {
   const flow = section.blocks.filter((b) => b.layout.position !== 'absolute');
   const absolute = section.blocks.filter((b) => b.layout.position === 'absolute');
@@ -49,7 +48,6 @@ export function SectionView({
             mode={mode}
             selected={selectedBlockId === b.id}
             onSelect={() => onSelectBlock?.(b.id)}
-            visibleStep={visibleStep}
             hiddenOverride={hiddenOverrides?.[b.id]}
             onClick={() => onBlockClick?.(b.id)}
             vars={vars}
@@ -68,7 +66,6 @@ export function SectionView({
           mode={mode}
           selected={selectedBlockId === b.id}
           onSelect={() => onSelectBlock?.(b.id)}
-          visibleStep={visibleStep}
           hiddenOverride={hiddenOverrides?.[b.id]}
           onClick={() => onBlockClick?.(b.id)}
           onGuides={onGuides}

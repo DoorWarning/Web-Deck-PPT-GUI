@@ -2,7 +2,9 @@
 // Deck -> Section[] -> Block[]. Blocks lay out in responsive flow/grid (NOT
 // absolute coordinates); each section is one "screen" of the talk.
 
-export type SectionLayout = 'flow' | 'center' | 'split' | 'grid' | 'fixed';
+// 'free' = blocks are absolutely positioned (drag/resize anywhere); the others
+// arrange blocks in normal document flow.
+export type SectionLayout = 'free' | 'flow' | 'center' | 'split' | 'grid' | 'fixed';
 
 export type BlockType =
   | 'markdown'
@@ -54,6 +56,10 @@ export interface BlockLayout {
   position?: 'flow' | 'absolute';
   xPct?: number; // left, 0..100 of section width
   yPct?: number; // top, 0..100 of section height
+  heightPct?: number; // (legacy) optional fixed height
+  // Reference width % at scale 1. Resizing changes widthPct while this stays
+  // fixed, so content scale = widthPct / baseWidthPct (uniform scale-to-fit).
+  baseWidthPct?: number;
   z?: number;    // paint order for absolute blocks
 }
 
@@ -103,6 +109,7 @@ export interface Deck {
   id: string;
   title: string;
   theme: DeckTheme;
+  canvas: { w: number; h: number }; // presentation resolution (e.g. 1280×720)
   sections: Section[];
   scripts: string[]; // global custom JS run in present mode
 }

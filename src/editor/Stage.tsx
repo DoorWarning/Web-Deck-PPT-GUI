@@ -6,12 +6,13 @@ import { SectionView } from '../render/SectionView';
 export function Stage() {
   const section = useCurrentSection();
   const theme = useStore((s) => s.deck.theme);
+  const canvas = useStore((s) => s.deck.canvas);
   const selectedBlockId = useStore((s) => s.selectedBlockId);
   const selectBlock = useStore((s) => s.selectBlock);
 
   return (
     <div className="stage">
-      <div className="stage-frame">
+      <div className="stage-frame" style={{ aspectRatio: `${canvas.w} / ${canvas.h}` }}>
         <SectionView
           section={section}
           theme={theme}
@@ -20,7 +21,7 @@ export function Stage() {
           onSelectBlock={selectBlock}
         />
       </div>
-      <p className="stage-hint">미리보기는 반응형입니다. 창 크기를 줄이면 모바일 레이아웃을 확인할 수 있어요.</p>
+      <p className="stage-hint">미리보기는 캔버스 비율({canvas.w}×{canvas.h})로 표시됩니다.</p>
     </div>
   );
 }
