@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useStore } from './store/store';
 import { Toolbar } from './editor/Toolbar';
 import { SectionPanel } from './editor/SectionPanel';
@@ -12,6 +12,10 @@ import { useIsMobile } from './hooks/useIsMobile';
 export default function App() {
   const mode = useStore((s) => s.mode);
   const isMobile = useIsMobile();
+  const [leftOpen, setLeftOpen] = useState(true);
+  const [rightOpen, setRightOpen] = useState(true);
+  const [leftW, setLeftW] = useState(240);
+  const [rightW, setRightW] = useState(320);
   useEditorShortcuts(mode === 'edit');
 
   // Deep-link: a deployed/shared link can auto-start the presentation with
@@ -28,14 +32,56 @@ export default function App() {
     <div className="app">
       <Toolbar />
       <BlockPalette />
-      <div className="app-body">
-        <aside className="left-rail">
-          <SectionPanel />
+      <div
+        className="app-body"
+        style={{ gridTemplateColumns: `${leftOpen ? leftW + 'px' : '34px'} 1fr ${rightOpen ? rightW + 'px' : '34px'}` }}
+      >
+        <aside className={'left-rail' + (leftOpen ? '' : ' collapsed')}>
+          <button
+            className="rail-toggle"
+            title={leftOpen ? '섹션 패널 접기' : '섹션 패널 열기'}
+            onClick={() => setLeftOpen((o) => !o)}
+          >
+            {leftOpen ? '‹ 섹션' : '섹션'}
+          </button>
+          {leftOpen && <SectionPanel />}
+          {leftOpen && <RailResizer edge="e" onResize={(dx) => setLeftW((w) => clamp(w + dx, 180, 520))} />}
         </aside>
         <Stage />
-        <BlockInspector />
+        <aside className={'right-rail' + (rightOpen ? '' : ' collapsed')}>
+          <button
+            className="rail-toggle"
+            title={rightOpen ? '속성 패널 접기' : '속성 패널 열기'}
+            onClick={() => setRightOpen((o) => !o)}
+          >
+            {rightOpen ? '속성 ›' : '속성'}
+          </button>
+          {rightOpen && <BlockInspector />}
+          {rightOpen && <RailResizer edge="w" onResize={(dx) => setRightW((w) => clamp(w - dx, 220, 560))} />}
+        </aside>
       </div>
     </div>
+  );
+}
+
+const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
+
+// Drag handle on a panel edge to resize it. Reports the pointer delta (px) since
+// the last move; the parent clamps it into the panel width. 'e' sits on the
+// right edge (left rail), 'w' on the left edge (right rail).
+function RailResizer({ edge, onResize }: { edge: 'e' | 'w'; onResize: (dx: number) => void }) {
+  const last = useRef(0);
+  return (
+    <div
+      className={`rail-resizer ${edge}`}
+      onPointerDown={(e) => { last.current = e.clientX; (e.target as HTMLElement).setPointerCapture(e.pointerId); }}
+      onPointerMove={(e) => {
+        if (e.buttons !== 1) return;
+        const dx = e.clientX - last.current;
+        last.current = e.clientX;
+        if (dx) onResize(dx);
+      }}
+    />
   );
 }
 
