@@ -23,10 +23,10 @@ export default function App() {
   return (
     <div className="app">
       <Toolbar />
+      <BlockPalette />
       <div className="app-body">
         <aside className="left-rail">
           <SectionPanel />
-          <BlockPalette />
         </aside>
         <Stage />
         <BlockInspector />
@@ -46,7 +46,19 @@ function useEditorShortcuts(active: boolean) {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? s.redo() : s.undo(); return; }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); s.redo(); return; }
       if (typing) return;
-      if ((e.key === 'Delete' || e.key === 'Backspace') && s.selectedBlockId) { e.preventDefault(); s.deleteBlock(s.selectedBlockId); }
+      // Block-first: when a block is selected the shortcut targets the block,
+      // otherwise it targets the current slide section.
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault();
+        if (s.selectedBlockId) s.deleteBlock(s.selectedBlockId);
+        else s.deleteSection(s.currentSection);
+        return;
+      }
+      if (e.key === 'd' || e.key === 'D') {
+        e.preventDefault();
+        if (s.selectedBlockId) s.duplicateBlock(s.selectedBlockId);
+        else s.duplicateSection(s.currentSection);
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
