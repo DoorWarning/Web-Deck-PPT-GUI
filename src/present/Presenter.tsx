@@ -78,6 +78,10 @@ export function Presenter() {
         minScale: 0.2,
         maxScale: 2.0,
         keyboard: true,
+        // Reveal 5 auto-switches to "scroll view" below 435px wide, which has no
+        // slide navigation (next/prev/swipe do nothing) and leaves reveal-scroll
+        // styles on <body> on exit. 0 disables it so mobile stays a normal deck.
+        scrollActivationWidth: 0,
       });
       deckRef.current = r;
 
@@ -135,7 +139,7 @@ export function Presenter() {
   // slide layers / touch handling can never overlay or swallow their taps.
   return (
     <>
-      <div className="presenter-reveal">
+      <div className={'presenter-reveal' + (isMobile ? ' mobile' : '')}>
         <div className="reveal" ref={revealRef}>
           <div className="slides">
             {deck.sections.map((section) => (

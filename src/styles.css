@@ -274,6 +274,11 @@ textarea.mono { font-family: ui-monospace, "Cascadia Code", monospace; font-size
 .present-exit:hover { opacity: 1; }
 .present-exit.mobile { opacity: 0.9; padding: 10px 14px; font-size: 15px; }
 
+/* On mobile we show our own large prev/next, so hide reveal's built-in arrow
+   controls (and slide number) — otherwise they overlap our buttons. */
+.presenter-reveal.mobile .reveal .controls,
+.presenter-reveal.mobile .reveal .slide-number { display: none !important; }
+
 /* Let reveal handle horizontal swipes (sections scroll only vertically). */
 .reveal .section { touch-action: pan-y; overflow-x: hidden; }
 /* Large on-screen prev/next for touch navigation in present mode. */
