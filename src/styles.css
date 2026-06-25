@@ -9,6 +9,7 @@
 }
 * { box-sizing: border-box; }
 html, body, #root { margin: 0; height: 100%; font-family: system-ui, "Segoe UI", "Malgun Gothic", sans-serif; }
+html, body { overscroll-behavior: none; } /* no rubber-band/bounce on touch */
 
 /* themed scrollbars (mid-gray translucent works on light + dark surfaces) */
 * { scrollbar-width: thin; scrollbar-color: rgba(140,146,160,0.5) transparent; }
@@ -43,11 +44,11 @@ button.primary:hover { filter: brightness(1.08); }
 .section-thumb-row { display: flex; align-items: center; gap: 6px; padding: 6px; border-radius: 8px; cursor: pointer; margin-bottom: 6px; }
 .section-thumb-row:hover { background: #232733; }
 .section-thumb-row.active { background: #2a2440; outline: 2px solid var(--accent); }
-.section-index { width: 16px; text-align: center; color: var(--muted); font-size: 12px; }
-.section-thumb { width: 150px; height: 84px; overflow: hidden; border: 1px solid var(--line); border-radius: 5px; position: relative; background: #000; }
-.thumb-scale { width: 1280px; height: 720px; transform: scale(0.117); transform-origin: top left; pointer-events: none; }
-.section-thumb-actions { display: flex; flex-direction: column; gap: 2px; }
-.section-thumb-actions button { padding: 2px 5px; font-size: 11px; }
+.section-index { width: 16px; flex-shrink: 0; text-align: center; color: var(--muted); font-size: 12px; }
+.section-thumb { flex: 1; min-width: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 5px; position: relative; background: #000; }
+.thumb-scale { position: absolute; top: 0; left: 0; transform-origin: top left; pointer-events: none; }
+.section-thumb-actions { display: flex; flex-direction: column; gap: 2px; flex-shrink: 0; }
+.section-thumb-actions button { padding: 2px 5px; font-size: 11px; min-height: 0; }
 .add-section-btn { margin: 10px; }
 
 .block-palette { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--chrome2); border-bottom: 1px solid var(--line); flex-shrink: 0; overflow-x: auto; }
@@ -58,7 +59,9 @@ button.primary:hover { filter: brightness(1.08); }
 
 /* stage */
 .stage { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; min-height: 0; gap: 10px; background: #0c0d12; }
-.stage-frame { width: 100%; max-width: 1000px; aspect-ratio: 16 / 9; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.5); border: 1px solid var(--line); }
+.stage-frame { position: relative; width: 100%; max-width: 1000px; aspect-ratio: 16 / 9; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.5); border: 1px solid var(--line); }
+/* Fixed canvas-sized layer, uniformly scaled to fit the frame (WYSIWYG). */
+.stage-scale { position: absolute; top: 0; left: 0; }
 .stage-hint { color: var(--muted); font-size: 12px; margin: 0; }
 
 /* inspector */
@@ -115,6 +118,43 @@ textarea.mono { font-family: ui-monospace, "Cascadia Code", monospace; font-size
 .modal-downloads { display: flex; gap: 8px; margin-top: 10px; }
 .modal-downloads button { flex: 1; padding: 10px; font-weight: 600; }
 
+/* ============ Mobile editor shell (.app.mobile) ============ */
+/* Scoped to .app.mobile so the desktop layout is untouched. Canvas stays
+   pinned at top; the active panel fills the rest above a bottom tab bar. */
+.app.mobile .m-stage { flex: 0 0 auto; padding: 10px; background: #0c0d12; }
+.app.mobile .m-stage .stage { padding: 0; }
+.app.mobile .m-panel { flex: 1; min-height: 0; overflow-y: auto; background: var(--chrome2); }
+.app.mobile .m-tabbar { display: flex; flex-shrink: 0; border-top: 1px solid var(--line); background: var(--chrome2); }
+.app.mobile .m-tabbar button { flex: 1; border: 0; border-radius: 0; padding: 11px 4px; font-size: 12px; background: transparent; color: var(--muted); }
+.app.mobile .m-tabbar button.on { color: var(--accent); box-shadow: inset 0 2px 0 var(--accent); }
+
+/* mobile top bar + hamburger dropdown menu */
+.m-topbar { position: relative; display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--chrome2); border-bottom: 1px solid var(--line); flex-shrink: 0; }
+.m-topbar .brand { color: var(--accent); white-space: nowrap; }
+.m-topbar .deck-title { width: auto; min-width: 60px; flex: 1; }
+.m-topbar .icon-btn { flex-shrink: 0; padding: 6px 9px; font-size: 15px; }
+.m-menu-btn, .m-topbar .primary { flex-shrink: 0; min-height: 38px; }
+.m-menu-btn { font-size: 18px; padding: 4px 12px; }
+.m-menu-backdrop { position: fixed; inset: 0; z-index: 90; }
+.m-menu { position: absolute; top: calc(100% + 6px); right: 8px; z-index: 91; display: flex; flex-direction: column; gap: 6px; width: 230px; padding: 8px; background: var(--chrome2); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 16px 40px rgba(0,0,0,0.5); }
+.m-menu button { width: 100%; text-align: left; padding: 11px 12px; }
+.m-menu-row { display: flex; gap: 6px; }
+.m-menu-row button { flex: 1; text-align: center; padding: 11px 6px; }
+
+/* reuse-component fixups under mobile */
+.app.mobile input, .app.mobile select, .app.mobile textarea { font-size: 16px; } /* iOS: avoid focus zoom */
+.app.mobile button { min-height: 40px; }
+.app.mobile .m-tabbar button { min-height: 0; }
+.app.mobile .inspector { border-left: none; width: 100%; }
+.app.mobile .left-rail { border-right: none; }
+.app.mobile .stage-frame { max-width: 100%; }
+.app.mobile .stage-hint { display: none; }
+.app.mobile .m-panel { padding-bottom: env(safe-area-inset-bottom); }
+.app.mobile .block-palette { flex-direction: column; align-items: stretch; border-bottom: none; overflow: visible; padding: 14px; }
+.app.mobile .block-palette h4 { margin: 0 0 8px; }
+.app.mobile .palette-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.app.mobile .palette-item { flex-direction: column; padding: 14px 8px; }
+
 /* ============ Section rendering (shared) ============ */
 .section { position: relative; display: flex; width: 100%; height: 100%; box-sizing: border-box; overflow: auto; }
 .section-inner { width: 100%; max-width: var(--max-w, 980px); margin: 0 auto; padding: var(--pad, 64px); display: flex; flex-direction: column; gap: 24px; box-sizing: border-box; }
@@ -143,7 +183,7 @@ textarea.mono { font-family: ui-monospace, "Cascadia Code", monospace; font-size
 .block.draggable:hover { outline: 1px dashed rgba(124,92,255,0.6); outline-offset: 4px; border-radius: 6px; }
 
 /* resize handles for selected absolute blocks */
-.rz { position: absolute; width: 11px; height: 11px; background: #fff; border: 1.5px solid var(--accent); border-radius: 2px; z-index: 10; pointer-events: auto; }
+.rz { position: absolute; width: 12px; height: 12px; background: #fff; border: 1.5px solid var(--accent); border-radius: 2px; z-index: 10; pointer-events: auto; }
 .rz-nw { left: -6px; top: -6px; cursor: nwse-resize; }
 .rz-n  { left: 50%; top: -6px; margin-left: -6px; cursor: ns-resize; }
 .rz-ne { right: -6px; top: -6px; cursor: nesw-resize; }
@@ -230,8 +270,18 @@ textarea.mono { font-family: ui-monospace, "Cascadia Code", monospace; font-size
 .reveal .slides .section { height: 100%; width: 100%; }
 /* reveal resets that would shrink our content */
 .reveal .section h1, .reveal .section h2, .reveal .section h3 { text-transform: none; }
-.present-exit { position: fixed; top: 12px; right: 12px; z-index: 60; background: rgba(20,20,20,0.8); color: #fff; border: 1px solid rgba(255,255,255,0.25); border-radius: 8px; padding: 6px 12px; opacity: 0.25; transition: opacity 0.2s; }
+.present-exit { position: fixed; top: 12px; right: 12px; z-index: 1000; background: rgba(20,20,20,0.8); color: #fff; border: 1px solid rgba(255,255,255,0.25); border-radius: 8px; padding: 6px 12px; opacity: 0.25; transition: opacity 0.2s; }
 .present-exit:hover { opacity: 1; }
+.present-exit.mobile { opacity: 0.9; padding: 10px 14px; font-size: 15px; }
+
+/* Let reveal handle horizontal swipes (sections scroll only vertically). */
+.reveal .section { touch-action: pan-y; overflow-x: hidden; }
+/* Large on-screen prev/next for touch navigation in present mode. */
+.present-nav { position: fixed; bottom: 18px; z-index: 1000; width: 56px; height: 56px; padding: 0; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: rgba(20,20,20,0.78); color: #fff; border: 1px solid rgba(255,255,255,0.3); }
+.present-nav svg { width: 26px; height: 26px; fill: none; stroke: #fff; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.present-nav:active { background: var(--accent); border-color: var(--accent); }
+.present-nav.prev { left: 16px; }
+.present-nav.next { right: 16px; }
 
 /* ============ Presenter (legacy custom — unused) ============ */
 .presenter { position: fixed; inset: 0; background: #000; overflow: hidden; }

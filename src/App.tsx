@@ -5,10 +5,13 @@ import { SectionPanel } from './editor/SectionPanel';
 import { BlockPalette } from './editor/BlockPalette';
 import { Stage } from './editor/Stage';
 import { BlockInspector } from './editor/BlockInspector';
+import { MobileApp } from './editor/MobileApp';
 import { Presenter } from './present/Presenter';
+import { useIsMobile } from './hooks/useIsMobile';
 
 export default function App() {
   const mode = useStore((s) => s.mode);
+  const isMobile = useIsMobile();
   useEditorShortcuts(mode === 'edit');
 
   // Deep-link: a deployed/shared link can auto-start the presentation with
@@ -19,6 +22,7 @@ export default function App() {
   }, []);
 
   if (mode === 'present') return <Presenter />;
+  if (isMobile) return <MobileApp />;
 
   return (
     <div className="app">
