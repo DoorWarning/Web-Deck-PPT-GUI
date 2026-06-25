@@ -136,6 +136,10 @@ textarea.mono { font-family: ui-monospace, "Cascadia Code", monospace; font-size
 .prompt-copy { position: absolute; top: 8px; right: 8px; z-index: 1; padding: 4px 12px; font-size: 12px; }
 .modal-downloads { display: flex; gap: 8px; margin-top: 10px; }
 .modal-downloads button { flex: 1; padding: 10px; font-weight: 600; }
+.import-modal { max-width: 600px; }
+.import-textarea { width: 100%; min-height: 280px; resize: vertical; margin-top: 8px; }
+.import-error { color: #ff6b6b; font-size: 13px; margin: 10px 0 0; white-space: pre-wrap; word-break: break-word; }
+.modal-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 20px; border-top: 1px solid var(--line); flex-shrink: 0; }
 
 /* ============ Mobile editor shell (.app.mobile) ============ */
 /* Scoped to .app.mobile so the desktop layout is untouched. Canvas stays

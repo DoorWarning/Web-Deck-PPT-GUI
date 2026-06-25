@@ -11,31 +11,35 @@ export function exportJson(deck: Deck): void {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-// Open a file picker and parse a deck JSON. Resolves with the deck or rejects.
-export function importJson(): Promise<Deck> {
+// Parse + validate a deck from raw JSON text (pasted or read from a file).
+// Throws on invalid JSON or an unsupported format. Normalizes via the serializer.
+export function parseDeckJson(text: string): Deck {
+  const deck = JSON.parse(text) as Deck;
+  if (deck.version !== 2 || !Array.isArray(deck.sections)) {
+    throw new Error('지원하지 않는 형식입니다 (version 2 덱 JSON이 필요).');
+  }
+  return JSON.parse(serializeDeck(deck)) as Deck;
+}
+
+// Open a file picker and resolve with the file's text contents.
+export function readTextFile(accept = 'application/json,.json'): Promise<string> {
   return new Promise((resolve, reject) => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = 'application/json,.json';
+    input.accept = accept;
     input.onchange = () => {
       const file = input.files?.[0];
       if (!file) return reject(new Error('no file'));
       const reader = new FileReader();
-      reader.onload = () => {
-        try {
-          const deck = JSON.parse(String(reader.result)) as Deck;
-          if (deck.version !== 2 || !Array.isArray(deck.sections)) {
-            throw new Error('unsupported deck format');
-          }
-          // round-trip through serializer to normalize
-          resolve(JSON.parse(serializeDeck(deck)));
-        } catch (e) {
-          reject(e);
-        }
-      };
+      reader.onload = () => resolve(String(reader.result));
       reader.onerror = () => reject(reader.error);
       reader.readAsText(file);
     };
     input.click();
   });
+}
+
+// Open a file picker and parse a deck JSON. Resolves with the deck or rejects.
+export async function importJson(): Promise<Deck> {
+  return parseDeckJson(await readTextFile());
 }

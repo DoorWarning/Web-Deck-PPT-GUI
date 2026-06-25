@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useStore } from '../store/store';
 import { exportStandalone } from '../io/exportSingleFile';
-import { exportJson, importJson } from '../io/json';
+import { exportJson } from '../io/json';
 import { HelpModal } from './HelpModal';
+import { ImportModal } from './ImportModal';
 
 // Compact mobile top bar: brand, title, quick Present, and a hamburger (☰) that
 // drops the remaining toolbar actions down as a popup. Reuses the same store
@@ -10,6 +11,7 @@ import { HelpModal } from './HelpModal';
 export function MobileTopBar() {
   const [menu, setMenu] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const title = useStore((s) => s.deck.title);
   const setTitle = useStore((s) => s.setTitle);
   const undo = useStore((s) => s.undo);
@@ -17,7 +19,6 @@ export function MobileTopBar() {
   const canUndo = useStore((s) => s.history.past.length > 0);
   const canRedo = useStore((s) => s.history.future.length > 0);
   const setMode = useStore((s) => s.setMode);
-  const replaceDeck = useStore((s) => s.replaceDeck);
 
   // Close the menu on Escape.
   useEffect(() => {
@@ -27,10 +28,6 @@ export function MobileTopBar() {
     return () => window.removeEventListener('keydown', onKey);
   }, [menu]);
 
-  const onImport = async () => {
-    setMenu(false);
-    try { replaceDeck(await importJson()); } catch (e) { alert('불러오기 실패: ' + (e as Error).message); }
-  };
   const run = (fn: () => void) => () => { setMenu(false); fn(); };
 
   return (
@@ -46,7 +43,7 @@ export function MobileTopBar() {
         <>
           <div className="m-menu-backdrop" onClick={() => setMenu(false)} />
           <div className="m-menu" role="menu">
-            <button onClick={onImport}>📂 불러오기</button>
+            <button onClick={() => { setMenu(false); setShowImport(true); }}>📂 불러오기</button>
             <button onClick={run(() => exportJson(useStore.getState().deck))}>⬇ JSON 저장</button>
             <button onClick={run(() => exportStandalone(useStore.getState().deck))}>💾 단일 HTML 저장</button>
             <button onClick={() => { setMenu(false); setShowHelp(true); }}>❔ 도움말 / AI 프롬프트</button>
@@ -55,6 +52,7 @@ export function MobileTopBar() {
       )}
 
       {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
+      {showImport && <ImportModal onClose={() => setShowImport(false)} />}
     </div>
   );
 }
