@@ -46,9 +46,12 @@ function useEditorShortcuts(active: boolean) {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? s.redo() : s.undo(); return; }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); s.redo(); return; }
       if (typing) return;
+      // Outside of inputs, Backspace must not navigate the browser back
+      // (some browsers still do this) — it would unload the editor and reset.
+      if (e.key === 'Backspace') { e.preventDefault(); return; }
       // Block-first: when a block is selected the shortcut targets the block,
       // otherwise it targets the current slide section.
-      if (e.key === 'Delete' || e.key === 'Backspace') {
+      if (e.key === 'Delete') {
         e.preventDefault();
         if (s.selectedBlockId) s.deleteBlock(s.selectedBlockId);
         else s.deleteSection(s.currentSection);
