@@ -64,7 +64,12 @@ export function BlockView({ block, mode, selected, onSelect, hiddenOverride, onC
   const L = block.layout;
   const isAbsolute = L.position === 'absolute';
   const scale = isAbsolute ? Math.max(0.05, L.scale ?? 1) : 1;
-  const fillHeight = isAbsolute && L.heightPct != null;
+  // Fill blocks (chart, media, iframe): content fills the box and reflows; no zoom.
+  const fill = !!def.fill && isAbsolute;
+  // Only fill blocks get an independent box height. Scale blocks (text, poll)
+  // always hug their content (height follows content × scale), so the resize
+  // border can never be smaller than what's inside.
+  const fillHeight = fill && L.heightPct != null;
   const hidden = hiddenOverride ?? block.hidden;
   const clickable = mode === 'present' && block.interactions.some((i) => i.on === 'click');
   const draggable = mode === 'edit' && isAbsolute && !drag.current;
@@ -150,17 +155,25 @@ export function BlockView({ block, mode, selected, onSelect, hiddenOverride, onC
     const cy = r.oy + r.oh / 2;
     const patch = { ...L, position: 'absolute' as const };
 
-    if (horiz && vert) {
-      // Corner → uniform scale: drive by horizontal, scale box + content together.
+    if (horiz && vert && fill) {
+      // Fill block corner → resize the box freely (w + h); content reflows.
+      const dW = r.dir.includes('e') ? dx : -dx;
+      const dH = r.dir.includes('s') ? dy : -dy;
+      const newW = clamp(r.ow + 2 * dW, 4, 100);
+      const newH = clamp(r.oh + 2 * dH, 3, 100);
+      patch.widthPct = round1(newW);
+      patch.heightPct = round1(newH);
+      patch.xPct = round1(cx - newW / 2);
+      patch.yPct = round1(cy - newH / 2);
+    } else if (horiz && vert) {
+      // Scale block corner → uniform zoom. The box height follows content (no
+      // heightPct), so the border always wraps the content exactly.
       const dW = r.dir.includes('e') ? dx : -dx;
       const newW = clamp(r.ow + 2 * dW, 4, 100);
       const ratio = newW / r.ow;
-      const newH = r.oh * ratio;
       patch.widthPct = round1(newW);
-      patch.heightPct = round1(newH);
       patch.scale = Math.round(r.os * ratio * 1000) / 1000;
       patch.xPct = round1(cx - newW / 2);
-      patch.yPct = round1(cy - newH / 2);
     } else if (horiz) {
       // e/w → box width only (content reflows; scale unchanged).
       const dW = r.dir.includes('e') ? dx : -dx;
@@ -193,7 +206,8 @@ export function BlockView({ block, mode, selected, onSelect, hiddenOverride, onC
     style.left = `${L.xPct ?? 0}%`;
     style.top = `${L.yPct ?? 0}%`;
     style.width = `${L.widthPct ?? 40}%`;
-    if (L.heightPct != null) style.height = `${L.heightPct}%`;
+    // Only fill blocks take an explicit box height; scale blocks hug content.
+    if (fill && L.heightPct != null) style.height = `${L.heightPct}%`;
     style.zIndex = L.z ?? 1;
   } else if (L.widthPct != null) {
     style.maxWidth = `${L.widthPct}%`;
@@ -229,7 +243,11 @@ export function BlockView({ block, mode, selected, onSelect, hiddenOverride, onC
       onPointerUp={onPointerUp}
     >
       <div className="block-content">
-        {isAbsolute ? (
+        {fill ? (
+          // Fill: content stretches to the box (CSS handles height via .fill-h)
+          // and reflows on width change — no scale transform.
+          <def.Render block={block} mode={mode} vars={vars} fillHeight={fillHeight} />
+        ) : isAbsolute ? (
           <ScaledContent scale={scale} fillHeight={fillHeight}>
             <def.Render block={block} mode={mode} vars={vars} />
           </ScaledContent>
@@ -237,7 +255,7 @@ export function BlockView({ block, mode, selected, onSelect, hiddenOverride, onC
           <def.Render block={block} mode={mode} vars={vars} />
         )}
       </div>
-      {showHandles && HANDLE_DIRS.map((dir) => (
+      {showHandles && (fill ? HANDLE_DIRS : HANDLE_DIRS.filter((d) => d !== 'n' && d !== 's')).map((dir) => (
         <div
           key={dir}
           className={`rz rz-${dir}`}

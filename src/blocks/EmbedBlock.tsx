@@ -40,4 +40,4 @@ function Edit({ block, update }: BlockEditProps) {
   );
 }
 
-export const embedBlock: BlockDef = { type: 'embed', label: '임베드', icon: '🔗', Render, Edit };
+export const embedBlock: BlockDef = { type: 'embed', label: '임베드', icon: '🔗', Render, Edit, fill: true };

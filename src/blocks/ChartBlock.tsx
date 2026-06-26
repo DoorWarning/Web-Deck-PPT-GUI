@@ -114,4 +114,4 @@ function Edit({ block, update }: BlockEditProps) {
   );
 }
 
-export const chartBlock: BlockDef = { type: 'chart', label: '차트', icon: '📊', Render, Edit };
+export const chartBlock: BlockDef = { type: 'chart', label: '차트', icon: '📊', Render, Edit, fill: true };

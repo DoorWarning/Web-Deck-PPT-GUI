@@ -1,22 +1,27 @@
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import { buildSrcdoc } from '../runtime/sandbox';
+import { useAutoFrameHeight } from '../runtime/useAutoFrameHeight';
 import type { BlockDef, BlockRenderProps, BlockEditProps } from './types';
 
 interface CodeProps { html: string; css: string; js: string }
 
 // The hybrid escape hatch: author drops raw HTML/CSS/JS that runs sandboxed.
 // Unlike playground, no live editor is shown to the viewer — it just renders.
-function Render({ block }: BlockRenderProps) {
+// The iframe auto-sizes to its content height (reported by the sandbox script).
+function Render({ block, fillHeight }: BlockRenderProps) {
   const p = block.props as unknown as CodeProps;
   const srcdoc = useMemo(() => buildSrcdoc(p.html, p.css, p.js), [p.html, p.css, p.js]);
+  const ref = useRef<HTMLIFrameElement>(null);
+  const h = useAutoFrameHeight(ref);
+  // Boxed (height set) → fill the box so content reflows; otherwise grow to fit.
   return (
     <iframe
+      ref={ref}
       className="customcode-frame"
-      data-autosize
       title={block.id}
       sandbox="allow-scripts"
       srcDoc={srcdoc}
-      style={{ width: '100%', minHeight: 120, border: 0 }}
+      style={{ width: '100%', height: fillHeight ? '100%' : h, minHeight: 120, border: 0, display: 'block' }}
     />
   );
 }
@@ -34,4 +39,4 @@ function Edit({ block, update }: BlockEditProps) {
   );
 }
 
-export const customCodeBlock: BlockDef = { type: 'customCode', label: '커스텀 코드', icon: '</>', Render, Edit };
+export const customCodeBlock: BlockDef = { type: 'customCode', label: '커스텀 코드', icon: '</>', Render, Edit, fill: true };

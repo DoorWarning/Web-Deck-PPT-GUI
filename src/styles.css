@@ -199,6 +199,21 @@ textarea.mono { font-family: ui-monospace, "Cascadia Code", monospace; font-size
 .block.pos-absolute { box-sizing: border-box; }
 .block-content { display: block; }
 .block.fill-h, .block.fill-h > .block-content { height: 100%; }
+/* Fill blocks (iframe-backed) stretch their root to the box when a height is
+   set, so the content fills and reflows instead of leaving empty space. */
+.block.fill-h .customcode-frame,
+.block.fill-h .embed-block { height: 100%; }
+.block.fill-h .embed-block { aspect-ratio: auto; }
+.block.fill-h .playground { height: 100%; grid-template-rows: minmax(0, 1fr); }
+.block.fill-h .pg-preview { height: 100%; min-height: 0; }
+.block.fill-h .pg-editor { min-height: 0; }
+/* Chart: canvas fills remaining height (sliders stay below) and re-renders. */
+.block.fill-h .chart-block { height: 100%; display: flex; flex-direction: column; }
+.block.fill-h .chart-canvas-wrap { flex: 1; height: auto; min-height: 0; max-height: none; }
+/* Media: image/video fits the box keeping aspect ratio (contain, no distortion). */
+.block.fill-h .media-block { height: 100%; display: flex; flex-direction: column; }
+.block.fill-h .media-block img,
+.block.fill-h .media-block video { flex: 1; min-height: 0; width: 100%; object-fit: contain; }
 /* In the editor, block content is non-interactive so the whole block is a
    single drag/select surface (charts, iframes, buttons don't steal events). */
 .app .block-content { pointer-events: none; user-select: none; }

@@ -48,4 +48,4 @@ function Edit({ block, update }: BlockEditProps) {
   );
 }
 
-export const mediaBlock: BlockDef = { type: 'media', label: '미디어', icon: '🖼️', Render, Edit };
+export const mediaBlock: BlockDef = { type: 'media', label: '미디어', icon: '🖼️', Render, Edit, fill: true };
