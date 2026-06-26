@@ -23,8 +23,13 @@ export interface BlockDef {
   icon: string; // emoji glyph for palette
   Render: FC<BlockRenderProps>;
   Edit: FC<BlockEditProps>;
-  // Box-sizing blocks (iframe-backed: customCode, playground, embed). Their
-  // content fills the box and reflows on resize instead of being zoom-scaled.
-  // Corner-resize then changes the box width/height rather than a scale factor.
+  // Box-sizing blocks (iframe-backed: customCode, playground, embed; chart, media).
+  // Their content fills the box width and reflows on resize instead of being
+  // zoom-scaled.
   fill?: boolean;
+  // For fill blocks: whether the content can also fill an *independent* box
+  // height. True (default) for content that refits to any height (chart, media,
+  // iframe). Set false when height must follow content (e.g. poll) so the box
+  // can never be shorter than what's inside.
+  boxHeight?: boolean;
 }

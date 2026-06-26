@@ -94,4 +94,6 @@ function Edit({ block, update }: BlockEditProps) {
   );
 }
 
-export const pollBlock: BlockDef = { type: 'poll', label: '폴/퀴즈', icon: '🗳️', Render, Edit };
+// Fill width (buttons stretch to the box), but height follows content so the
+// border never ends up smaller than the options inside.
+export const pollBlock: BlockDef = { type: 'poll', label: '폴/퀴즈', icon: '🗳️', Render, Edit, fill: true, boxHeight: false };

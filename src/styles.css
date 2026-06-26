@@ -271,7 +271,7 @@ textarea.mono { font-family: ui-monospace, "Cascadia Code", monospace; font-size
 .chart-slider { display: flex; flex-direction: column; gap: 2px; font-size: 0.85rem; }
 .chart-slider input[type=range] { accent-color: var(--accent); }
 
-.poll-block { width: 100%; max-width: 620px; margin: 0 auto; }
+.poll-block { width: 100%; margin: 0; }
 .poll-q { font-size: clamp(1.2rem, 2.6vw, 1.7rem); margin: 0 0 16px; }
 .poll-options { display: flex; flex-direction: column; gap: 10px; }
 .poll-opt { position: relative; overflow: hidden; text-align: left; padding: 14px 16px; font-size: 1.05rem; border-radius: 10px; border: 1px solid rgba(127,127,127,0.4); background: rgba(127,127,127,0.12); color: inherit; display: flex; align-items: center; gap: 8px; }
